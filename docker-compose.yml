@@ -1,0 +1,52 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: chatdb
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpassword
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - chatnet
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  auth:
+    build: ./auth
+    container_name: auth
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - chatnet
+
+  server:
+    build: ./server
+    container_name: server
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    networks:
+      - chatnet
+
+networks:
+  chatnet:
+    driver: bridge
+
+volumes:
+  mysql_data:
