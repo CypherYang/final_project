@@ -137,6 +137,9 @@ ipconfig                      # Windows，看「IPv4 位址」
 ```bash
 docker compose down           # 停止，資料保留
 docker compose down -v        # 停止並清空資料庫（帳號和訊息都會不見）
+docker rm -f $(docker ps -aq) # 清空container
+docker volume rm -f $(docker volume ls -q) #清空volume
+docker rmi -f $(docker images -aq)#清空image
 ```
 
 ## 常見問題
