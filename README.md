@@ -4,6 +4,17 @@
 
 三個服務（驗證、聊天、資料庫）用 Docker 啟動，client 直接在自己的電腦上執行。
 
+## 快速開始
+
+已經裝好 Docker Desktop 和可用的 Python 的話：
+
+```bash
+docker compose up -d --build        # 1. 啟動伺服器（第一次約需 1 分鐘）
+python3.13 client/gui_client.py     # 2. 開啟聊天室（python3.13 換成你電腦上能用的版本，見下方）
+```
+
+3. 在登入視窗輸入想要的帳號密碼，按「**註冊**」，就會進入聊天室。
+
 ## 功能
 
 | 功能 | 說明 |
@@ -20,13 +31,21 @@
 - **Docker Desktop**，安裝後要打開，等它顯示 running
 - **Python 3**，而且要能使用 Tkinter（圖形介面用的）
 
-確認 Tkinter 可以用：
+### 先找出能用的 Python
+
+同一台電腦上常常裝了好幾個 Python，不是每一個都能開圖形視窗。在終端機執行：
 
 ```bash
-python3 -m tkinter
+for p in python3 python3.13 python3.12 python3.11; do
+  command -v "$p" >/dev/null && printf '%s -> ' "$p" && "$p" -c 'import tkinter; tkinter.Tk().destroy(); print("OK")' 2>&1 | tail -1
+done
 ```
 
-跳出一個寫著 Tcl/Tk 的小視窗就代表正常，關掉它即可。沒有跳出視窗的話，先看最下面的「常見問題」。
+顯示 **OK** 的那一個就能用。**本文件裡所有的 `python3.13`，都換成你這裡找到的那一個。**
+
+全部都失敗的話，看最下面的「常見問題」。
+
+> 開發機實測：macOS 15.6 上，Apple 內建的 `python3` 會出現 `macOS 15 (1507) or later required` 而無法開啟；Homebrew 的 `python3.13`（執行過 `brew install python-tk`）可以正常使用。
 
 ## 執行步驟
 
@@ -46,7 +65,7 @@ docker compose ps
 ### 2. 開啟聊天室
 
 ```bash
-python3 client/gui_client.py
+python3.13 client/gui_client.py
 ```
 
 ### 3. 註冊並登入
@@ -63,7 +82,7 @@ python3 client/gui_client.py
 
 ### 4. 開始聊天
 
-要測試兩個人對話，再開一個終端機視窗執行一次 `python3 client/gui_client.py`，用另一個帳號登入即可。
+要測試兩個人對話，再開一個終端機視窗執行一次同樣的指令，用另一個帳號登入即可。
 
 ## 多台電腦一起用
 
@@ -81,7 +100,7 @@ ipconfig                      # Windows，看「IPv4 位址」
 **其他電腦（B）：**
 
 1. 只需要 `client/gui_client.py` 這一個檔案，以及能使用 Tkinter 的 Python。不用安裝 Docker，也不用整個專案。
-2. 執行 `python3 gui_client.py`
+2. 先照「先找出能用的 Python」確認版本，再執行 `python3.13 gui_client.py`
 3. 「伺服器位址」填 A 電腦的 IP
 
 > **重要：所有人填的伺服器位址必須一模一樣。**
@@ -92,13 +111,26 @@ ipconfig                      # Windows，看「IPv4 位址」
 
 | 按鈕 | 作用 |
 |------|------|
-| 送出 | 送出輸入框裡的訊息。也可以在輸入框連按兩次 Enter |
+| 送出 | 送出輸入框裡的訊息。也可以在輸入框連按兩次 Enter（用中文輸入法時，選字的那一下 Enter 也可能算進去） |
 | 抽辯論題 | 隨機抽一題，聊天室裡所有人都會看到。按過後三秒內不能再按 |
 | 線上名單 | 顯示目前在同一個聊天室的帳號 |
 | 歷史訊息 | 輸入一個帳號，查詢那個人在這個聊天室說過的所有話 |
 | 離開 | 關閉聊天室 |
 
 訊息顯示方式：自己的訊息靠右（綠色），別人的訊息靠左並顯示對方帳號，辯論題置中（黃色）。
+
+## Demo 前檢查清單
+
+上台前在 demo 用的電腦上，依序確認：
+
+- [ ] Docker Desktop 已打開，`docker compose ps` 看到三個容器都在執行
+- [ ] 用「先找出能用的 Python」確認版本，並用那個版本開啟聊天室
+- [ ] 準備好兩個已註冊的帳號，開兩個視窗分別登入
+- [ ] 互傳一則訊息：自己的在右邊（綠色），對方的在左邊
+- [ ] 按「抽辯論題」：兩個視窗都出現同一題黃色卡片
+- [ ] 按「線上名單」：顯示兩個帳號
+- [ ] 要用多台電腦的話，所有人「伺服器位址」都填同一個 IP，並先實際連一次
+- [ ] 現場 Wi-Fi 擋裝置互連時，改用手機熱點
 
 ## 關閉伺服器
 
@@ -111,12 +143,15 @@ docker compose down -v        # 停止並清空資料庫（帳號和訊息都會
 
 | 狀況 | 處理方式 |
 |------|------|
-| `No module named '_tkinter'` | Python 沒有安裝 Tkinter。Homebrew 的 Python 執行 `brew install python-tk`；或改用 [python.org](https://www.python.org/downloads/) 下載的版本 |
-| `macOS 15 (1507) or later required` | 系統版本和 Tk 對不上。更新 macOS，或改用 Homebrew / python.org 的 Python |
+| `No module named '_tkinter'` | 這個 Python 沒有 Tkinter。Homebrew 的 Python 執行 `brew install python-tk`，或改用「先找出能用的 Python」測出來的版本 |
+| `macOS 15 (1507) or later required` | Apple 內建的 `/usr/bin/python3` 和系統版本對不上。改用 Homebrew 的 `python3.13`，或把 macOS 更新到 15.7 以上 |
+| 所有 Python 都不能用 | 到 [python.org](https://www.python.org/downloads/) 下載安裝，它自帶 Tkinter |
+| `docker compose` 找不到指令或連不到 Docker | Docker Desktop 沒有打開，打開後等它顯示 running 再執行 |
 | 登入時顯示「無法連線到驗證伺服器」 | 伺服器沒啟動，執行 `docker compose up -d`；或伺服器位址填錯 |
 | 其他電腦連不進來 | 檢查防火牆是否擋住 8080 和 8081；學校 Wi-Fi 常會擋裝置互連，可改用手機熱點 |
 | 兩個人看不到彼此的訊息 | 兩邊「伺服器位址」填的內容不一樣，詳見上面的「多台電腦一起用」 |
-| 抽辯論題顯示「題庫目前沒有題目」 | 題庫沒匯入成功，執行 `docker compose down -v` 再 `docker compose up -d --build` 重建 |
+| 抽辯論題顯示「題庫目前沒有題目」 | 題庫沒匯入成功。執行 `docker compose down -v` 再 `docker compose up -d --build` 重建（注意：`-v` 會清掉所有帳號和訊息） |
+| 改了伺服器程式但沒有效果 | 要加 `--build` 重新建置：`docker compose up -d --build` |
 
 ## 專案結構
 
