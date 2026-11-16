@@ -6,6 +6,8 @@ import traceback
 import pymysql
 from dotenv import load_dotenv
 
+from topics import DEFAULT_TOPICS  # 預設的辯論題庫
+
 load_dotenv()
 
 PORT = 8080
@@ -16,6 +18,9 @@ YELLOW = "\033[33m"
 
 clients_lock = threading.Lock()
 clients = set()  # set of (socket, room_key) tuples, room_key = "ip:port"
+usernames = {}  # socket -> username，用來回答「線上名單」（同樣由 clients_lock 保護）
+
+TOPIC_SENDER = "辯論題"  # 辯論題存進 messages 時使用的名稱
 
 
 def get_db_connection():
@@ -65,6 +70,26 @@ def init_tables(conn):
         else:
             print(f"{GREEN}Messages table already exists!{RESET}")
 
+        # 辯論題庫：資料表不存在就建立，裡面沒有題目就匯入預設題目
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS debate_topics (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                content VARCHAR(255) NOT NULL UNIQUE
+            );
+            """
+        )
+        cur.execute("SELECT COUNT(*) FROM debate_topics;")
+        (topic_count,) = cur.fetchone()
+        if topic_count == 0:
+            cur.executemany(
+                "INSERT INTO debate_topics (content) VALUES (%s);",
+                [(topic,) for topic in DEFAULT_TOPICS],
+            )
+            print(f"{GREEN}Imported {len(DEFAULT_TOPICS)} debate topics!{RESET}")
+        else:
+            print(f"{GREEN}Debate topics table has {topic_count} topics.{RESET}")
+
 
 def send_line(sock, text):
     try:
@@ -101,6 +126,29 @@ def fetch_user_messages(conn, username, room):
             (room, username),
         )
         return cur.fetchall()
+
+
+def fetch_random_topic(conn):
+    """從題庫隨機取一題；題庫是空的時候回傳 None。"""
+    with conn.cursor() as cur:
+        cur.execute("SELECT content FROM debate_topics ORDER BY RAND() LIMIT 1;")
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+def online_usernames(room):
+    """回傳目前在這個聊天室裡的使用者名稱（去除重複並排序）。"""
+    with clients_lock:
+        names = {usernames.get(sock, "") for sock, sock_room in clients if sock_room == room}
+    return sorted(name for name in names if name)
+
+
+def remember_client(client_socket, room, username):
+    """把連線記到聊天室裡，並記下它的使用者名稱。"""
+    with clients_lock:
+        clients.add((client_socket, room))
+        if username:
+            usernames[client_socket] = username
 
 
 def broadcast(room, text, exclude_socket=None):
@@ -150,8 +198,7 @@ def handle_client(client_socket, addr):
                 if msg_type == "message":
                     text = message.get("message", "")
 
-                    with clients_lock:
-                        clients.add((client_socket, room))
+                    remember_client(client_socket, room, username)
                     current_room = room
 
                     # 先廣播，確保即時聊天不受資料庫寫入影響
@@ -170,30 +217,45 @@ def handle_client(client_socket, addr):
                         db_conn = get_db_connection()
 
                 elif msg_type == "fetch":
-                    with clients_lock:
-                        clients.add((client_socket, room))
+                    remember_client(client_socket, room, username)
                     current_room = room
 
                     rows = fetch_room_messages(db_conn, room)
-                    if not rows:
-                        send_line(client_socket, "NO_MESSAGE")
-                    for uname, msg in rows:
-                        send_line(client_socket, f"{uname}: {msg}")
-                    send_line(client_socket, "END")
+                    # 整份回覆一次送出，避免中途被其他人的廣播訊息插進來
+                    lines = [f"{uname}: {msg}" for uname, msg in rows] or ["NO_MESSAGE"]
+                    send_line(client_socket, "\n".join(lines + ["END"]))
 
                 elif msg_type == "history":
                     rows = fetch_user_messages(db_conn, username, room)
-                    if not rows:
-                        send_line(client_socket, "NO_MESSAGE")
-                    for uname, msg in rows:
-                        send_line(client_socket, f"{uname}: {msg}")
-                    send_line(client_socket, "END")
+                    lines = [f"{uname}: {msg}" for uname, msg in rows] or ["NO_MESSAGE"]
+                    send_line(client_socket, "\n".join(lines + ["END"]))
 
                 elif msg_type == "online":
-                    with clients_lock:
-                        clients.add((client_socket, room))
+                    remember_client(client_socket, room, username)
                     current_room = room
                     print(f"{username} is online in room {room}")
+                    # 回覆目前在同一個聊天室的使用者名單
+                    names = online_usernames(room)
+                    send_line(client_socket, "[線上] " + "、".join(names))
+
+                elif msg_type == "topic":
+                    remember_client(client_socket, room, username)
+                    current_room = room
+
+                    topic = fetch_random_topic(db_conn)
+                    if topic is None:
+                        send_line(client_socket, "[系統] 題庫目前沒有題目")
+                        continue
+
+                    # 題目要讓聊天室裡的每個人都看到，包含按下抽題的人，所以不排除任何連線
+                    broadcast(room, f"{TOPIC_SENDER}: {topic}")
+                    print(f"{YELLOW}[{room}] {username} drew a topic: {topic}{RESET}")
+
+                    # 存進 messages，之後進聊天室的人在歷史訊息裡也看得到
+                    try:
+                        insert_message(db_conn, TOPIC_SENDER, topic, room)
+                    except Exception as db_err:
+                        print(f"{RED}DB insert failed: {db_err}{RESET}")
 
     except Exception as e:
         print(f"{RED}Exception in thread: {e}{RESET}")
@@ -202,6 +264,7 @@ def handle_client(client_socket, addr):
         with clients_lock:
             if current_room is not None:
                 clients.discard((client_socket, current_room))
+            usernames.pop(client_socket, None)
         client_socket.close()
         db_conn.close()
         print(f"Connection closed: {addr}")

@@ -127,7 +127,9 @@ def handle_client(client_socket, addr):
                     password = message.get("password", "")
                     stored_password = get_stored_password(db_conn, username)
                     if not stored_password:
+                        # 帳號不存在時也要回覆，否則客戶端會一直等不到回應而卡住
                         print("Error retrieving stored password")
+                        send_line(client_socket, "帳號或密碼錯誤!")
                         continue
                     if stored_password == password:
                         send_line(client_socket, "登入成功")
