@@ -44,6 +44,29 @@ services:
     networks:
       - chatnet
 
+  # 網頁版：瀏覽器開 http://<這台電腦的IP>:8082
+  web:
+    build: ./web
+    container_name: web
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - server
+    environment:
+      AUTH_HOST: auth
+      AUTH_PORT: "8080"
+      CHAT_HOST: server
+      CHAT_PORT: "8080"   # 容器之間連線用容器內部的埠
+      WEB_PORT: "8082"
+      # 網頁版使用者進入的聊天室。要和 Tkinter / 終端機版同一間，
+      # 改成那些人登入時填的伺服器位址（例如 192.168.1.10）
+      ROOM_HOST: localhost
+      ROOM_PORT: "8081"
+    ports:
+      - "8082:8082"
+    networks:
+      - chatnet
+
 networks:
   chatnet:
     driver: bridge

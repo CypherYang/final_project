@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>辯論破冰聊天室</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #121212;
+    --panel: #1E1E1E;
+    --text: #EDEDED;
+    --muted: #9A9A9A;
+    --accent: #2F6FED;
+    --me: #8DE08A;
+    --me-fg: #10240F;
+    --other: #2C2C2E;
+    --topic: #F2B84B;
+    --topic-fg: #1F1300;
+    --error: #FF6B6B;
+    --line: #3A3A3C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px;
+    background: var(--other); color: var(--text); white-space: nowrap; }
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+  button.primary { background: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  input { font: inherit; font-size: 16px; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 11px 12px; outline: none; width: 100%; }
+  input:focus { border-color: var(--accent); }
+  .hidden { display: none !important; }
+
+  /* 登入畫面 */
+  #login { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .card h1 { margin: 0; font-size: 26px; }
+  .hint { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .card label { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+  .buttons { display: flex; gap: 10px; margin-top: 4px; }
+  .buttons button { flex: 1; }
+  #login-status { min-height: 20px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--error); }
+
+  /* 聊天畫面 */
+  #chat { height: 100%; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  header .title { flex: 1; min-width: 0; }
+  header .title b { display: block; font-size: 17px; }
+  header .title span { font-size: 13px; color: var(--muted); }
+  #messages { flex: 1; overflow-y: auto; padding: 16px 20px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 10px; }
+  footer { display: flex; gap: 8px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+  footer input { flex: 1; }
+
+  /* 對話泡泡：自己的靠右（綠），別人的靠左並顯示名字 */
+  .msg { display: flex; flex-direction: column; max-width: 72%; }
+  .msg.me { align-self: flex-end; align-items: flex-end; }
+  .msg.other { align-self: flex-start; align-items: flex-start; }
+  .name { font-size: 12px; color: var(--muted); margin: 0 0 4px 12px; }
+  .row { display: flex; align-items: flex-end; gap: 6px; }
+  .msg.me .row { flex-direction: row-reverse; }
+  .bubble { position: relative; padding: 9px 14px; border-radius: 16px; font-size: 16px; line-height: 1.45;
+    white-space: pre-wrap; word-break: break-word; }
+  .msg.me .bubble { background: var(--me); color: var(--me-fg); border-top-right-radius: 4px; }
+  .msg.other .bubble { background: var(--other); color: var(--text); border-top-left-radius: 4px; }
+  /* 泡泡上方的小箭頭 */
+  .bubble::before { content: ""; position: absolute; top: 0; width: 0; height: 0; border-style: solid; }
+  .msg.me .bubble::before { right: -9px; border-width: 10px 10px 0 0; border-color: var(--me) transparent transparent transparent; }
+  .msg.other .bubble::before { left: -9px; border-width: 10px 0 0 10px; border-color: var(--other) transparent transparent transparent; }
+  .time { font-size: 11px; color: var(--muted); flex: none; }
+
+  .topic { align-self: center; max-width: 85%; background: var(--topic); color: var(--topic-fg);
+    border-radius: 14px; padding: 12px 20px; text-align: center; margin: 6px 0; }
+  .topic small { display: block; font-size: 12px; font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; }
+  .topic div { font-size: 17px; font-weight: 700; line-height: 1.45; }
+  .system { align-self: center; color: var(--muted); font-size: 13px; text-align: center; line-height: 1.5; }
+
+  @media (max-width: 560px) {
+    header { flex-wrap: wrap; }
+    header .title { flex-basis: 100%; }
+    header button { flex: 1; padding: 9px 8px; font-size: 14px; }
+    #messages { padding: 14px 14px; }
+    .msg { max-width: 82%; }
+  }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <div class="card">
+    <h1>辯論破冰聊天室</h1>
+    <p class="hint">第一次使用請輸入想要的帳號密碼，再按「註冊」。<br>帳號不能有空白或冒號，最多 20 個字。</p>
+    <label>帳號<input id="username" autocomplete="username" maxlength="20"></label>
+    <label>密碼<input id="password" type="password" autocomplete="current-password"></label>
+    <div class="buttons">
+      <button id="login-btn" class="primary" disabled>登入</button>
+      <button id="signup-btn" disabled>註冊</button>
+    </div>
+    <p id="login-status">連線中…</p>
+  </div>
+</section>
+
+<section id="chat" class="hidden">
+  <header>
+    <div class="title"><b>辯論破冰聊天室</b><span id="who"></span></div>
+    <button id="topic-btn" class="primary">抽辯論題</button>
+    <button id="online-btn">線上名單</button>
+    <button id="leave-btn">離開</button>
+  </header>
+  <div id="messages" aria-live="polite"></div>
+  <footer>
+    <input id="input" placeholder="輸入訊息，按 Enter 送出" maxlength="500" autocomplete="off">
+    <button id="send-btn" class="primary">送出</button>
+  </footer>
+</section>
+
+<script>
+  // 和 Tkinter 版用同樣的規則顯示伺服器送來的每一行
+  const TOPIC_PREFIX = "辯論題: ";
+  const ONLINE_PREFIX = "[線上] ";
+  const TOPIC_COOLDOWN_MS = 3000;
+
+  const $ = (id) => document.getElementById(id);
+  let ws = null;
+  let me = null;          // 登入後的帳號
+  let mode = null;        // "fetch" = 正在收進聊天室時的歷史訊息
+  let ended = false;      // 連線已結束，避免重複顯示提示
+
+  // ---------- 連線 ----------
+
+  function connect() {
+    const scheme = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${scheme}://${location.host}/ws`);
+    ws.onopen = () => { setLoginBusy(false); showStatus(""); };
+    ws.onmessage = (event) => handle(JSON.parse(event.data));
+    ws.onclose = () => connectionEnded("與伺服器的連線中斷了，請重新整理頁面。");
+  }
+
+  function send(obj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(obj));
+      return true;
+    }
+    return false;
+  }
+
+  function handle(data) {
+    if (data.type === "auth_result") {
+      if (data.ok) {
+        me = data.username;
+        $("login").classList.add("hidden");
+        $("chat").classList.remove("hidden");
+        $("who").textContent = `已登入：${me}`;
+        mode = "fetch";
+        addSystem("—— 先前的訊息 ——");
+        $("input").focus();
+      } else {
+        showStatus(data.message);
+        setLoginBusy(false);
+      }
+    } else if (data.type === "line") {
+      handleLine(data.text);
+    } else if (data.type === "error") {
+      if (me) addSystem(data.message); else { showStatus(data.message); setLoginBusy(false); }
+    } else if (data.type === "disconnected") {
+      connectionEnded("聊天伺服器中斷了連線，請重新整理頁面。");
+    }
+  }
+
+  function connectionEnded(message) {
+    if (ended) return;
+    ended = true;
+    if (me) {
+      addSystem(message);
+      for (const id of ["input", "send-btn", "topic-btn", "online-btn"]) $(id).disabled = true;
+    } else {
+      showStatus("無法連線到伺服器，請確認伺服器有啟動後重新整理頁面。");
+      setLoginBusy(true);
+    }
+  }
+
+  // ---------- 登入 ----------
+
+  function setLoginBusy(busy) {
+    $("login-btn").disabled = busy;
+    $("signup-btn").disabled = busy;
+  }
+
+  function showStatus(text) {
+    $("login-status").textContent = text;
+  }
+
+  function submitLogin(action) {
+    const username = $("username").value.trim();
+    const password = $("password").value;
+    if (!username || !password) {
+      showStatus("帳號和密碼都要填。");
+      return;
+    }
+    if (send({ type: action, username, password })) {
+      setLoginBusy(true);
+      showStatus("登入中…");
+    }
+  }
+
+  $("login-btn").onclick = () => submitLogin("login");
+  $("signup-btn").onclick = () => submitLogin("signup");
+  $("password").addEventListener("keydown", (e) => {
+    if (isEnter(e)) { e.preventDefault(); submitLogin("login"); }
+  });
+
+  // ---------- 顯示訊息 ----------
+
+  function handleLine(text) {
+    if (text === "END") {
+      if (mode === "fetch") addSystem("—— 以上是先前的訊息 ——");
+      mode = null;
+      return;
+    }
+    if (text === "NO_MESSAGE") {
+      if (mode === "fetch") addSystem("（這個聊天室還沒有訊息）");
+      return;
+    }
+    // 歷史訊息沒有時間資訊，所以只有即時訊息顯示時間
+    addLine(text, mode !== "fetch");
+  }
+
+  function addLine(text, live) {
+    if (text.startsWith(TOPIC_PREFIX)) return addTopic(text.slice(TOPIC_PREFIX.length));
+    if (text.startsWith(ONLINE_PREFIX) || text.startsWith("[系統]")) return addSystem(text);
+    const split = text.indexOf(": ");
+    if (split < 0) return addSystem(text);
+    addBubble(text.slice(0, split), text.slice(split + 2), live ? now() : "");
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;  // 用 textContent，訊息裡的 HTML 不會被執行
+    return node;
+  }
+
+  function append(node, force) {
+    const box = $("messages");
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    box.append(node);
+    if (nearBottom || force) box.scrollTop = box.scrollHeight;
+  }
+
+  function addBubble(name, content, time) {
+    const mine = name === me;
+    const wrap = el("div", "msg " + (mine ? "me" : "other"));
+    if (!mine) wrap.append(el("div", "name", name));
+    const row = el("div", "row");
+    row.append(el("div", "bubble", content));
+    if (time) row.append(el("span", "time", time));
+    wrap.append(row);
+    append(wrap, mine);
+  }
+
+  function addTopic(content) {
+    const card = el("div", "topic");
+    card.append(el("small", "", "辯論題"), el("div", "", content));
+    append(card, true);
+  }
+
+  function addSystem(text) {
+    append(el("div", "system", text));
+  }
+
+  function now() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+
+  // ---------- 聊天操作 ----------
+
+  // 用中文輸入法選字時按的 Enter 不算，只有真正要送出的 Enter 才送
+  function isEnter(e) {
+    return e.key === "Enter" && !e.isComposing && e.keyCode !== 229;
+  }
+
+  function sendMessage() {
+    const input = $("input");
+    const text = input.value.trim();
+    if (!text) return;
+    if (send({ type: "message", text })) {
+      // 聊天伺服器不會把訊息傳回給發送者，所以自己先顯示
+      addBubble(me, text, now());
+      input.value = "";
+    }
+  }
+
+  $("send-btn").onclick = sendMessage;
+  $("input").addEventListener("keydown", (e) => {
+    if (isEnter(e)) { e.preventDefault(); sendMessage(); }
+  });
+
+  $("topic-btn").onclick = () => {
+    if (send({ type: "topic" })) {
+      // 題目由伺服器廣播回來（包含自己），所以這裡不用自己顯示
+      $("topic-btn").disabled = true;
+      setTimeout(() => { if (!ended) $("topic-btn").disabled = false; }, TOPIC_COOLDOWN_MS);
+    }
+  };
+
+  $("online-btn").onclick = () => send({ type: "online" });
+
+  $("leave-btn").onclick = () => {
+    ended = true;
+    if (ws) ws.close();
+    location.reload();
+  };
+
+  $("username").focus();
+  setLoginBusy(true);
+  connect();
+</script>
+</body>
+</html>
