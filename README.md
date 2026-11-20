@@ -1,24 +1,22 @@
 # Docker Chatroom
 
-用 Python socket 寫的多人聊天室，有網頁版和桌面圖形版。聊天室裡可以按一個按鈕隨機抽一題辯論題，讓大家從辯論中認識彼此。
+用 Python socket 寫的多人聊天室。聊天室裡有一個「抽辯論題」按鈕，按下去會隨機出一題給所有人，讓剛認識的人從辯論中了解彼此。
 
-所有服務（驗證、聊天、資料庫、網頁）用 Docker 啟動。網頁版用瀏覽器就能進入，手機也可以；桌面圖形版直接在自己的電腦上執行。
+有**網頁版**和**桌面圖形版**兩種用法。所有服務用 Docker 一個指令啟動，網頁版用瀏覽器就能進入，手機也可以。
 
 ## 快速開始
 
-已經裝好 Docker Desktop 的話：
+1. 安裝並打開 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，等它顯示 running。
+2. 在專案資料夾執行：
 
-```bash
-docker compose up -d --build        # 啟動所有服務（第一次約需 1 分鐘）
-```
+   ```bash
+   docker compose up -d --build
+   ```
 
-**網頁版（推薦）**：瀏覽器打開 http://localhost:8082 ，輸入想要的帳號密碼，按「**註冊**」就會進入聊天室。不用安裝 Python。
+3. 瀏覽器打開 **http://localhost:8082**
+4. 輸入想要的帳號密碼，按「**註冊**」，就會進入聊天室。
 
-**桌面圖形版**：
-
-```bash
-python3.13 client/gui_client.py     # python3.13 換成你電腦上能用的版本，見下方「先找出能用的 Python」
-```
+第一次啟動要等資料庫初始化，大約一分鐘。打不開的話等一下再重新整理。
 
 ## 功能
 
@@ -26,20 +24,51 @@ python3.13 client/gui_client.py     # python3.13 換成你電腦上能用的版�
 |------|------|
 | 註冊 / 登入 | 帳號密碼存在 MySQL，擋重複帳號 |
 | 即時聊天 | 訊息立刻送到同聊天室的所有人 |
-| 歷史訊息 | 進聊天室自動載入先前的對話；也可以查單一帳號說過的話 |
-| 抽辯論題 | 從 100 題題庫隨機抽一題，廣播給聊天室所有人 |
-| 線上名單 | 查看目前在同一個聊天室的人 |
-| 跨電腦連線 | 同一個網路的其他電腦可以連進來 |
-| 網頁版 | 用瀏覽器就能聊天，手機也可以，不用安裝任何東西 |
+| 抽辯論題 | 從題庫隨機抽一題，聊天室裡所有人同時看到同一題 |
+| 線上名單 | 查看目前在聊天室的人 |
+| 歷史訊息 | 進聊天室自動載入先前的對話 |
+| 跨裝置連線 | 同一個網路的其他電腦、手機都能加入 |
 
-## 前置需求
+## 網頁版
 
-- **Docker Desktop**，安裝後要打開，等它顯示 running
-- **Python 3**，而且要能使用 Tkinter（只有桌面圖形版需要，只用網頁版可以跳過）
+### 開啟
 
-### 先找出能用的 Python
+| 在哪裡開 | 網址 |
+|------|------|
+| 跑 Docker 的這台電腦 | http://localhost:8082 |
+| 同一個網路的其他電腦或手機 | `http://<這台電腦的 IP>:8082` |
 
-同一台電腦上常常裝了好幾個 Python，不是每一個都能開圖形視窗。在終端機執行：
+查這台電腦的 IP：
+
+```bash
+ipconfig getifaddr en0        # macOS
+ipconfig                      # Windows，看「IPv4 位址」
+```
+
+會得到類似 `192.168.1.10` 的數字，其他裝置就打開 http://192.168.1.10:8082 。
+
+網頁版不用輸入伺服器位址：網址列打的就是伺服器位址，網頁會自動連回同一台電腦。
+
+### 操作
+
+| 動作 | 說明 |
+|------|------|
+| 送出訊息 | 在下方輸入框按 Enter，或按「送出」。用中文輸入法選字時按的 Enter 不會誤送 |
+| 抽辯論題 | 隨機出一題，所有人都會看到黃色的題目卡片。按過後三秒內不能再按 |
+| 線上名單 | 顯示目前在聊天室的帳號 |
+| 離開 | 登出並回到登入畫面 |
+
+自己的訊息靠右（綠色），別人的訊息靠左並顯示帳號。
+
+帳號不能包含空白或冒號，最多 20 個字。
+
+## 桌面圖形版
+
+不想用瀏覽器的話，也可以用 Python 的 Tkinter 介面。網頁版和桌面圖形版的帳號是共用的。
+
+### 1. 找出能用的 Python
+
+同一台電腦常常裝了好幾個 Python，不是每一個都能開圖形視窗。執行：
 
 ```bash
 for p in python3 python3.13 python3.12 python3.11; do
@@ -47,172 +76,102 @@ for p in python3 python3.13 python3.12 python3.11; do
 done
 ```
 
-顯示 **OK** 的那一個就能用。**本文件裡所有的 `python3.13`，都換成你這裡找到的那一個。**
-
-全部都失敗的話，看最下面的「常見問題」。
+顯示 **OK** 的那一個就能用，下面指令裡的 `python3.13` 換成它。
 
 > 開發機實測：macOS 15.6 上，Apple 內建的 `python3` 會出現 `macOS 15 (1507) or later required` 而無法開啟；Homebrew 的 `python3.13`（執行過 `brew install python-tk`）可以正常使用。
 
-## 執行步驟
-
-### 1. 啟動伺服器
-
-在專案根目錄執行：
-
-```bash
-docker compose up -d --build
-docker compose ps
-```
-
-要看到 `mysql`、`auth`、`server`、`web` 四個容器都在執行。第一次啟動要等 MySQL 初始化，大約半分鐘。
-
-伺服器第一次啟動時會自動建立資料表，並把 100 題辯論題匯入資料庫。
-
-### 2. 開啟聊天室
+### 2. 開啟
 
 ```bash
 python3.13 client/gui_client.py
 ```
 
-### 3. 註冊並登入
+登入視窗的「伺服器位址」：在跑 Docker 的電腦上填 `localhost`；其他電腦填那台電腦的 IP。其他電腦只需要 `client/gui_client.py` 這一個檔案。
 
-登入視窗有三個欄位：
+送出訊息要在輸入框連按兩次 Enter，或按「送出」。
 
-| 欄位 | 填什麼 |
-|------|------|
-| 伺服器位址 | 自己一個人測試填 `localhost`；多台電腦一起用時看下一節 |
-| 帳號 | 自己取 |
-| 密碼 | 自己取 |
+### 重要：所有人填的伺服器位址要一樣
 
-第一次使用按「**註冊**」，註冊成功會直接進入聊天室。之後按「**登入**」。
+聊天伺服器是用「填的伺服器位址」來區分聊天室的。A 填 `localhost`、B 填 `192.168.1.10`，兩個人雖然連到同一台伺服器，卻會在不同的聊天室，互相看不到訊息。
 
-### 4. 開始聊天
+多台電腦一起用時，**跑 Docker 的那台電腦也要填 IP，不要填 `localhost`**。
 
-要測試兩個人對話，再開一個終端機視窗執行一次同樣的指令，用另一個帳號登入即可。
+## 網頁版和桌面圖形版在同一個聊天室
 
-## 網頁版
+網頁版的使用者預設進到 `localhost` 這一間，也就是在跑 Docker 的電腦上、用桌面圖形版填 `localhost` 的那一間。
 
-`docker compose up -d --build` 會一併啟動網頁版，不用另外安裝。
-
-**跑伺服器的電腦**：瀏覽器打開 http://localhost:8082
-
-**同一個網路的其他電腦或手機**：先在跑伺服器的電腦上查 IP（`ipconfig getifaddr en0`），再用瀏覽器打開 `http://<IP>:8082`，例如 http://192.168.1.10:8082
-
-網頁版和桌面圖形版的差別：
-
-| | 網頁版 | 桌面圖形版 |
-|------|------|------|
-| 需要安裝 | 不用，有瀏覽器就好 | 能用 Tkinter 的 Python |
-| 手機 | 可以 | 不行 |
-| 送出訊息 | 按一次 Enter（中文輸入法選字的 Enter 不會誤送） | 連按兩次 Enter |
-| 帳號限制 | 不能有空白或冒號，最多 20 個字 | 沒有限制 |
-
-兩個版本的帳號是共用的，在網頁版註冊的帳號也能登入桌面圖形版。
-
-### 和桌面圖形版的人在同一個聊天室
-
-聊天伺服器是用「伺服器位址」來區分聊天室的。網頁版的使用者預設會進到 `localhost` 這一間，也就是在跑伺服器的電腦上、用桌面圖形版填 `localhost` 的那一間。
-
-要讓別台電腦的桌面圖形版（填的是 IP）和網頁版在同一間，把 `docker-compose.yml` 裡 `web` 的 `ROOM_HOST` 改成那個 IP，再執行 `docker compose up -d --build`。
-
-## 多台電腦一起用（桌面圖形版）
-
-同一個 Wi-Fi 或區域網路底下，其他電腦可以連進來。
-
-**跑伺服器的電腦（A）：**
+要讓其他電腦的桌面圖形版（填的是 IP）和網頁版在同一間，把 `docker-compose.yml` 裡 `web` 服務的 `ROOM_HOST` 改成那個 IP，再執行：
 
 ```bash
-ipconfig getifaddr en0        # macOS
-ipconfig                      # Windows，看「IPv4 位址」
+docker compose up -d --build
 ```
 
-會得到類似 `192.168.1.10` 的數字。
-
-**其他電腦（B）：**
-
-1. 只需要 `client/gui_client.py` 這一個檔案，以及能使用 Tkinter 的 Python。不用安裝 Docker，也不用整個專案。
-2. 先照「先找出能用的 Python」確認版本，再執行 `python3.13 gui_client.py`
-3. 「伺服器位址」填 A 電腦的 IP
-
-> **重要：所有人填的伺服器位址必須一模一樣。**
-> 伺服器是用「client 填的位址」來區分聊天室的。如果 A 填 `localhost`、B 填 `192.168.1.10`，兩個人雖然連到同一台伺服器，卻會被分到不同的聊天室，互相看不到訊息。
-> 所以多台電腦一起用時，**A 電腦自己也要填 IP，不要填 `localhost`**。
-
-## 操作說明
-
-| 按鈕 | 作用 |
-|------|------|
-| 送出 | 送出輸入框裡的訊息。也可以在輸入框連按兩次 Enter（用中文輸入法時，選字的那一下 Enter 也可能算進去） |
-| 抽辯論題 | 隨機抽一題，聊天室裡所有人都會看到。按過後三秒內不能再按 |
-| 線上名單 | 顯示目前在同一個聊天室的帳號 |
-| 歷史訊息 | 輸入一個帳號，查詢那個人在這個聊天室說過的所有話 |
-| 離開 | 關閉聊天室 |
-
-訊息顯示方式：自己的訊息靠右（綠色），別人的訊息靠左並顯示對方帳號，辯論題置中（黃色）。
+全部人都用網頁版的話，不需要做這一步。
 
 ## Demo 前檢查清單
 
 上台前在 demo 用的電腦上，依序確認：
 
 - [ ] Docker Desktop 已打開，`docker compose ps` 看到 `mysql`、`auth`、`server`、`web` 四個容器都在執行
-- [ ] 網頁版：瀏覽器打開 http://localhost:8082 能看到登入畫面；要讓台下用手機連的話，用 `http://<IP>:8082` 先自己試一次
-- [ ] 用「先找出能用的 Python」確認版本，並用那個版本開啟聊天室
-- [ ] 準備好兩個已註冊的帳號，開兩個視窗分別登入
+- [ ] 瀏覽器打開 http://localhost:8082 能看到登入畫面
+- [ ] 準備好兩個已註冊的帳號，用兩個瀏覽器分頁（其中一個用無痕視窗）分別登入
 - [ ] 互傳一則訊息：自己的在右邊（綠色），對方的在左邊
-- [ ] 按「抽辯論題」：兩個視窗都出現同一題黃色卡片
+- [ ] 按「抽辯論題」：兩個分頁都出現同一題黃色卡片
 - [ ] 按「線上名單」：顯示兩個帳號
-- [ ] 要用多台電腦的話，所有人「伺服器位址」都填同一個 IP，並先實際連一次
+- [ ] 要讓台下用手機連的話，先用自己的手機打開 `http://<IP>:8082` 試一次
 - [ ] 現場 Wi-Fi 擋裝置互連時，改用手機熱點
 
-## 關閉伺服器
+## 停止與清除
 
 ```bash
-docker compose down           # 停止，資料保留
-docker compose down -v        # 停止並清空資料庫（帳號和訊息都會不見）
-docker rm -f $(docker ps -aq) # 清空container
-docker volume rm -f $(docker volume ls -q) #清空volume
-docker rmi -f $(docker images -aq)#清空image
+docker compose down              # 停止，資料保留
+docker compose down -v           # 停止並清空這個專案的資料庫（帳號和訊息都會不見）
+docker compose down -v --rmi all # 再加上刪除這個專案建置的映像檔
+```
+
+### 清空整台電腦的 Docker
+
+> **警告**：下面三行會刪除**整台電腦上所有**的 Docker 容器、資料和映像檔，包括其他專案的資料庫。只清這個專案的話，用上面的 `docker compose down -v --rmi all` 就夠了。
+
+```bash
+docker rm -f $(docker ps -aq)                # 刪除所有容器
+docker volume rm -f $(docker volume ls -q)   # 刪除所有資料
+docker rmi -f $(docker images -aq)           # 刪除所有映像檔
 ```
 
 ## 常見問題
 
 | 狀況 | 處理方式 |
 |------|------|
-| `No module named '_tkinter'` | 這個 Python 沒有 Tkinter。Homebrew 的 Python 執行 `brew install python-tk`，或改用「先找出能用的 Python」測出來的版本 |
-| `macOS 15 (1507) or later required` | Apple 內建的 `/usr/bin/python3` 和系統版本對不上。改用 Homebrew 的 `python3.13`，或把 macOS 更新到 15.7 以上 |
-| 所有 Python 都不能用 | 到 [python.org](https://www.python.org/downloads/) 下載安裝，它自帶 Tkinter |
-| `docker compose` 找不到指令或連不到 Docker | Docker Desktop 沒有打開，打開後等它顯示 running 再執行 |
-| 登入時顯示「無法連線到驗證伺服器」 | 伺服器沒啟動，執行 `docker compose up -d`；或伺服器位址填錯 |
-| 其他電腦連不進來 | 檢查防火牆是否擋住 8080、8081（桌面圖形版）或 8082（網頁版）；學校 Wi-Fi 常會擋裝置互連，可改用手機熱點 |
-| 網頁打不開 | 執行 `docker compose ps` 確認 `web` 容器有在跑；網址的埠是 8082 |
-| 網頁版顯示「與伺服器的連線中斷了」 | `web` 容器重新啟動或伺服器關掉了，重新整理頁面再登入一次 |
-| 網頁版和桌面圖形版的人看不到彼此的訊息 | 兩邊不在同一個聊天室，見上面的「和桌面圖形版的人在同一個聊天室」 |
-| 兩個人看不到彼此的訊息 | 兩邊「伺服器位址」填的內容不一樣，詳見上面的「多台電腦一起用」 |
-| 抽辯論題顯示「題庫目前沒有題目」 | 題庫沒匯入成功。執行 `docker compose down -v` 再 `docker compose up -d --build` 重建（注意：`-v` 會清掉所有帳號和訊息） |
-| 改了伺服器程式但沒有效果 | 要加 `--build` 重新建置：`docker compose up -d --build` |
+| 網頁顯示「無法連上這個網站」 | 執行 `docker compose ps` 確認 `web` 有在跑；沒有的話執行 `docker compose up -d --build`。網址是 `http://`，埠是 8082 |
+| 其他裝置打不開網頁 | 不能用 `localhost`，要用 `http://<IP>:8082`；確認在同一個網路、防火牆沒擋 8082。學校 Wi-Fi 常會擋裝置互連，改用手機熱點 |
+| 網頁顯示「與伺服器的連線中斷了」 | 伺服器重新啟動或關掉了，重新整理頁面再登入一次 |
+| `docker compose` 找不到指令或連不到 Docker | Docker Desktop 沒有打開，打開後等它顯示 running |
+| 登入時顯示「帳號或密碼錯誤」 | 帳號還沒註冊，或密碼打錯。第一次使用要按「註冊」 |
+| 桌面版出現 `No module named '_tkinter'` | 這個 Python 沒有 Tkinter。Homebrew 的 Python 執行 `brew install python-tk`，或改用上面測出來能用的版本 |
+| 桌面版出現 `macOS 15 (1507) or later required` | Apple 內建的 `python3` 和系統版本對不上，改用 Homebrew 的 `python3.13`，或更新 macOS |
+| 桌面版的人看不到彼此的訊息 | 兩邊填的伺服器位址不一樣，見「所有人填的伺服器位址要一樣」 |
+| 網頁版和桌面版的人看不到彼此的訊息 | 不在同一個聊天室，見「網頁版和桌面圖形版在同一個聊天室」 |
+| 抽辯論題顯示「題庫目前沒有題目」 | 題庫沒匯入成功。執行 `docker compose down -v` 再 `docker compose up -d --build`（會清掉所有帳號和訊息） |
+| 改了程式但沒有效果 | 要加 `--build` 重新建置：`docker compose up -d --build` |
 
 ## 專案結構
 
 ```text
 final_project/
-├── auth/                 驗證服務（port 8080）
-│   ├── auth.py           註冊、登入
-│   └── .env              資料庫連線設定
-├── server/               聊天服務（port 8081）
-│   ├── server.py         訊息廣播、歷史訊息、抽辯論題
-│   ├── topics.py         100 題辯論題庫
-│   └── .env              資料庫連線設定
-├── web/                  網頁版（port 8082）
-│   ├── gateway.py        轉接服務：提供網頁，並把 WebSocket 轉成 TCP
-│   └── static/
-│       └── index.html    網頁介面
+├── auth/                  驗證服務（port 8080）
+│   └── auth.py            註冊、登入
+├── server/                聊天服務（port 8081）
+│   ├── server.py          訊息廣播、歷史訊息、抽辯論題、線上名單
+│   └── topics.py          辯論題庫，第一次啟動時匯入資料庫
+├── web/                   網頁版（port 8082）
+│   ├── gateway.py         轉接服務：提供網頁，並把 WebSocket 轉成 TCP
+│   └── static/index.html  網頁介面
 ├── client/
-│   ├── gui_client.py     桌面圖形版（在自己的電腦上執行）
-│   └── client.py         終端機版（舊版，仍可使用）
-└── docker-compose.yml    四個服務的設定
+│   ├── gui_client.py      桌面圖形版
+│   └── client.py          終端機版（最早的版本，仍可使用）
+└── docker-compose.yml     MySQL、auth、server、web 四個服務
 ```
-
-三種 client 最後用的都是同一套通訊協定，所以網頁版、桌面圖形版、終端機版可以在同一個聊天室裡互相聊天。
 
 ## 技術架構
 
@@ -229,20 +188,24 @@ web :8082  轉接服務 ──┐
                                 └──→ MySQL :3307   帳號、訊息、題庫
 ```
 
-瀏覽器不能直接開 TCP socket，所以網頁版多了一個轉接服務 `web/gateway.py`：它把瀏覽器透過 WebSocket 送來的動作，轉成原本「一行一則 JSON」的協定送給 auth 和 server，再把伺服器回傳的每一行轉回瀏覽器。auth、server、MySQL 都不需要為了網頁版修改。
+- **TCP socket + JSON**：每則訊息是一行 JSON，用 `type` 欄位分辨動作（`register`、`login`、`message`、`fetch`、`topic`、`online`）。TCP 是串流，所以用換行符號切出每一則訊息。
+- **threading**：auth 和 server 每個連線開一條執行緒，同時服務多個使用者。
+- **抽辯論題由 server 負責**：server 用 `ORDER BY RAND()` 從資料庫取一題，廣播給聊天室所有人並存進聊天紀錄。如果讓每個 client 自己抽，每個人看到的題目會不一樣。
+- **網頁版轉接服務**：瀏覽器不能直接開 TCP socket，所以 `web/gateway.py` 把瀏覽器的 WebSocket 訊息轉成原本的協定送給 auth 和 server。auth、server、MySQL 都不需要為了網頁版修改，三種 client 可以在同一個聊天室裡聊天。轉接服務只用 Python 標準函式庫，WebSocket 的握手與資料框是照 RFC 6455 自己實作的。
+- **網頁版不能冒充別人**：使用者名稱由轉接服務在登入成功後自己填入，不採用瀏覽器送來的值。
+- **桌面圖形版的執行緒**：Tkinter 的畫面只能由主執行緒更新，所以接收訊息的背景執行緒把內容放進佇列，主執行緒每 0.1 秒取出來顯示。
 
-轉接服務只用 Python 標準函式庫，WebSocket 的握手與資料框（frame）是照 RFC 6455 自己實作的。網頁版的使用者名稱由轉接服務在登入成功後自己填入，瀏覽器沒辦法冒充別人。
-
-- **Python 3.11** — 三個程式的開發語言
-- **socket（TCP）** — client 與兩個服務之間的連線
-- **threading** — 伺服器每個連線一條執行緒；client 用一條執行緒接收訊息
-- **JSON** — 訊息格式，一行一則，用 `type` 欄位分辨動作
-- **Tkinter** — 桌面圖形版介面
-- **asyncio + WebSocket（RFC 6455）** — 網頁版的轉接服務
-- **HTML / CSS / JavaScript** — 網頁版介面，沒有使用框架
-- **MySQL 8.0** — 儲存帳號、訊息與題庫
-- **Docker Compose** — 一個指令啟動四個服務
+| 技術 | 用途 |
+|------|------|
+| Python 3.11 | auth、server、web 的開發語言 |
+| socket（TCP） | client 與 auth、server 之間的連線 |
+| threading | 同時服務多個連線 |
+| asyncio + WebSocket | 網頁版的轉接服務 |
+| HTML / CSS / JavaScript | 網頁介面，沒有使用框架 |
+| Tkinter | 桌面圖形版介面 |
+| MySQL 8.0 | 儲存帳號、訊息與題庫 |
+| Docker Compose | 一個指令啟動四個服務 |
 
 ## 注意事項
 
-這是課程專案，為了方便開發，密碼目前是以明文儲存在資料庫，資料庫連線設定也直接放在專案裡。不要用在正式環境，也不要使用自己在其他網站的真實密碼。
+這是課程專案。為了方便開發，密碼目前以明文儲存在資料庫，資料庫連線設定也直接放在專案裡。不要用在正式環境，也不要使用自己在其他網站的真實密碼。
