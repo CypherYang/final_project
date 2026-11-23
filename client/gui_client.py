@@ -1,16 +1,3 @@
-# 圖形化介面的聊天室 client（Tkinter）
-#
-# 和終端機版的 client.py 用同一套協定連到 auth 與 chat server：
-#   - TCP socket
-#   - 一行一則 JSON 訊息，用 "type" 欄位分辨動作
-# 所以伺服器不用為了圖形介面另外開一套 API，兩種 client 可以同時在同一個聊天室裡。
-#
-# 執行方式（在自己的電腦上，不是在 Docker 裡）：
-#   python3 gui_client.py
-#
-# 重點觀念：Tkinter 的畫面只能由「主執行緒」更新。
-# 接收訊息的背景執行緒不能直接改畫面，所以它只把收到的內容丟進 queue，
-# 主執行緒每 100 毫秒從 queue 取出來顯示（見 ChatWindow.poll_queue）。
 
 import json
 import os
