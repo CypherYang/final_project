@@ -38,9 +38,6 @@ BUTTON_DISABLED_FG = "#6B6B6B"
 
 class DarkButton(tk.Label):
     """用 Label 做的按鈕。
-
-    macOS 上原生的 tk.Button 不能改底色，所以用 Label 加上滑鼠事件來做，
-    這樣在 Mac 和 Windows 上看起來才會一樣。
     """
 
     def __init__(self, parent, text, command, primary=False, width=10):
