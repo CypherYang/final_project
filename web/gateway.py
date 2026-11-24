@@ -1,7 +1,6 @@
 # 網頁版聊天室的轉接服務（gateway）
 #
 # 瀏覽器不能直接開 TCP socket，只能用 HTTP 和 WebSocket。
-# 這個程式站在瀏覽器和原本的 auth / server 中間：
 #
 #   瀏覽器 ←WebSocket→ gateway ←TCP，一行一則 JSON→ auth / server
 #
@@ -11,9 +10,6 @@
 #      再把聊天伺服器回傳的每一行轉送回瀏覽器
 #
 # auth 和 server 完全不用改，所以網頁版、Tkinter 版、終端機版可以在同一個聊天室裡聊天。
-#
-# 只用 Python 標準函式庫。WebSocket 的握手（handshake）和資料框（frame）
-# 是照 RFC 6455 自己實作的，方便對照課程裡學到的 socket 概念。
 #
 # 和其他 client 一樣，每個瀏覽器分頁對應「一條到聊天伺服器的 TCP 連線」。
 # 差別是使用者名稱由 gateway 在登入成功後自己填，瀏覽器沒辦法冒充別人。
