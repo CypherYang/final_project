@@ -1,4 +1,10 @@
 #功能：客戶端可以註冊帳號和登入，並且能同時服務多個客戶端連線。
+'''
+只處理兩種 type：
+register — 先 username_exists 查，已存在就回「使用者已存在」，否則 insert_user 然後回「註冊成功」
+login — get_stored_password 拿出密碼，直接用 == 比對，回「登入成功」或「帳號或密碼錯誤」
+
+'''
 import socket
 import threading
 import json
@@ -24,7 +30,7 @@ def get_db_connection():
         autocommit=True,#每次 SQL 執行後自動提交 不用手動執行
     )
 
-#建表函式 init_tables
+#建表函式docker run 起來時跑一次。檢查 users 和 messages 兩張表存不存在，不存在就建
 def init_tables(conn):
     #cur.execute()SQL指令送到db執行 執行結果要由cur.fetchone 來拿
     with conn.cursor() as cur:#conn.cursor()：從資料庫連線（connection）建立一個游標物件，用來執行 SQL 指令
@@ -60,21 +66,21 @@ def init_tables(conn):
         else:
             print(f"{GREEN}Messages table already exists!{RESET}")
 
-#使用者查詢/新增輔助函式
+#檢查帳號有沒有被註冊
 def username_exists(conn, username):
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) FROM users WHERE username = %s;", (username,))
         (count,) = cur.fetchone()#解構賦值，把查詢結果的第一欄取出成 count
         return count > 0
 
-#依 username 查出資料庫中儲存的密碼字串
+#查帳號存的密碼
 def get_stored_password(conn, username):
     with conn.cursor() as cur:
         cur.execute("SELECT password FROM users WHERE username = %s;", (username,))
         row = cur.fetchone()
         return row[0] if row else ""
 
-#新使用者的帳號密碼寫入資料庫
+#新帳號密碼寫進 users表
 def insert_user(conn, username, password):
     with conn.cursor() as cur:
         cur.execute(
@@ -83,18 +89,19 @@ def insert_user(conn, username, password):
         )
     return True
 
-#傳送資料給客戶端
+#送一行文字給 client，自動補上結尾的 \n
 def send_line(conn_socket, text):
     conn_socket.sendall((text + "\n").encode("utf-8"))
 
-#處理每個客戶端連線
+#一個客戶端連線就開一條thread 因為auth沒有共用狀態所以不用上鎖
+#每條 thread 只操作自己的 socket 和自己的資料庫連線
 def handle_client(client_socket, addr):
-    print(f"New connection from {addr}")#函式會在獨立執行緒中執行
-    db_conn = get_db_connection()#在main裡面有thread建立一條資料庫連線
+    print(f"New connection from {addr}")
+    db_conn = get_db_connection()
     buffer = ""
     try:
         while True:
-            data = client_socket.recv(4096)#最多讀 4096 bytes
+            data = client_socket.recv(4096)
             if not data:#對方已經關閉連線
                 break
             #先把資料收下來再處理,避免TCP沒傳完就開始處理
@@ -146,7 +153,7 @@ def handle_client(client_socket, addr):
         db_conn.close()
         print(f"Connection closed: {addr}")
 
-
+#建立表 開TCP 端口 bind to 8008 一直accept 一條連線一條thread
 def main():
     init_conn = get_db_connection()
     print(f"{GREEN}Connected to the MySQL server successfully!{RESET}")
@@ -177,3 +184,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
