@@ -22,6 +22,8 @@ usernames = {}  # socket -> username，用來回答「線上名單」（同樣�
 
 TOPIC_SENDER = "辯論題"  # 辯論題存進 messages 時使用的名稱
 
+#資料庫層
+
 
 def get_db_connection():
     return pymysql.connect(
@@ -35,7 +37,7 @@ def get_db_connection():
         write_timeout=5,
     )
 
-
+#多建第三張 debate_topics
 def init_tables(conn):
     with conn.cursor() as cur:
         cur.execute("SHOW TABLES LIKE 'users';")
@@ -90,18 +92,21 @@ def init_tables(conn):
         else:
             print(f"{GREEN}Debate topics table has {topic_count} topics.{RESET}")
 
+#工具 / 主流程
 
+
+#送文字給client 
 def send_line(sock, text):
     try:
         sock.sendall((text + "\n").encode("utf-8"))
     except OSError:
         pass
 
-
+#把 ip 和 port 組成 "ip:port" 字串當房號
 def room_key(ip, port):
     return f"{ip}:{port}"
 
-
+#寫一則訊息進 messages
 def insert_message(conn, username, message, room):
     with conn.cursor() as cur:
         cur.execute(
@@ -109,7 +114,7 @@ def insert_message(conn, username, message, room):
             (username, message, room),
         )
 
-
+#撈整間房的所有訊息
 def fetch_room_messages(conn, room):
     with conn.cursor() as cur:
         cur.execute(
@@ -118,7 +123,7 @@ def fetch_room_messages(conn, room):
         )
         return cur.fetchall()
 
-
+#撈某個帳號在某間房說過的所有話
 def fetch_user_messages(conn, username, room):
     with conn.cursor() as cur:
         cur.execute(
@@ -127,7 +132,7 @@ def fetch_user_messages(conn, username, room):
         )
         return cur.fetchall()
 
-
+#ORDER BY RAND() LIMIT 1 隨機抽一題。題庫空回 None
 def fetch_random_topic(conn):
     """從題庫隨機取一題；題庫是空的時候回傳 None。"""
     with conn.cursor() as cur:
@@ -136,13 +141,17 @@ def fetch_random_topic(conn):
         return row[0] if row else None
 
 
+
+#連線狀態層
+#回傳目前在這間房的使用者名單，去重後排序
+
 def online_usernames(room):
     """回傳目前在這個聊天室裡的使用者名稱（去除重複並排序）。"""
     with clients_lock:
         names = {usernames.get(sock, "") for sock, sock_room in clients if sock_room == room}
     return sorted(name for name in names if name)
 
-
+#把這條連線登記進 clients 集合，使用者名稱記進 usernames 字典
 def remember_client(client_socket, room, username):
     """把連線記到聊天室裡，並記下它的使用者名稱。"""
     with clients_lock:
@@ -150,7 +159,7 @@ def remember_client(client_socket, room, username):
         if username:
             usernames[client_socket] = username
 
-
+#把一行文字送給同一間房的所有人
 def broadcast(room, text, exclude_socket=None):
     with clients_lock:
         dead = []
@@ -167,6 +176,8 @@ def broadcast(room, text, exclude_socket=None):
             clients.discard(item)
 
 
+
+#收訊息 切行 解JSON 分成五種type
 def handle_client(client_socket, addr):
     print(f"New connection from {addr}")
     db_conn = get_db_connection()
